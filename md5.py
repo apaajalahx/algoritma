@@ -1,136 +1,104 @@
 #!/bin/python3
 # md5 algoritma tapi masih error, mumet cok asu
+from enum import Enum
+from math import floor,sin
+import struct
 from bitarray import bitarray
-import sys
+import traceback
 
-r = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
-     5,  9, 14, 20, 5,  9, 14, 20, 5,  9, 14, 20, 5,  9, 14, 20,
-     4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
-     6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21]
+A = 0x67452301
+B = 0xefcdab89
+C = 0x98badcfe
+D = 0x10325476
+    
 
-k = [   0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
-        0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
-        0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be,
-        0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821,
-        0xf61e2562, 0xc040b340, 0x265e5a51, 0xe9b6c7aa,
-        0xd62f105d, 0x02441453, 0xd8a1e681, 0xe7d3fbc8,
-        0x21e1cde6, 0xc33707d6, 0xf4d50d87, 0x455a14ed,
-        0xa9e3e905, 0xfcefa3f8, 0x676f02d9, 0x8d2a4c8a,
-        0xfffa3942, 0x8771f681, 0x6d9d6122, 0xfde5380c,
-        0xa4beea44, 0x4bdecfa9, 0xf6bb4b60, 0xbebfbc70,
-        0x289b7ec6, 0xeaa127fa, 0xd4ef3085, 0x04881d05,
-        0xd9d4d039, 0xe6db99e5, 0x1fa27cf8, 0xc4ac5665,
-        0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039,
-        0x655b59c3, 0x8f0ccc92, 0xffeff47d, 0x85845dd1,
-        0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1,
-        0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391]
+class MD5:
+    def init(self):
+        self.r = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+             5,  9, 14, 20, 5,  9, 14, 20, 5,  9, 14, 20, 5,  9, 14, 20,
+             4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+             6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21]
+        self.k = list(range(64))
+        for i in range(64):
+            self.k[i] = floor(abs(sin(i + 1)) * 2**32)
+        self.w = list(range(16))
+        self.buffer = list(range(4))
+        self.digest = list(range(16))
 
-pad = [ 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+    def update(self, data):
+        try:
+            ed = bitarray(endian='big')
+            ed.frombytes(data.encode('utf-8'))
+            ed.append(1)
+            while len(ed)%512!=448:
+                ed.append(0)
+            ed = bitarray(ed, endian='little')
+            bits = self.little_endian((len(data) * 8) % 2**64);
+            bits.extend(ed.copy())
+            for offset in range(1):
+                chunk = offset * 512
+                u = [bits[chunk + (x * 32) : chunk + (x * 32) + 32] for x in range(16)]
+                Z = [int.from_bytes(word.tobytes(), byteorder="little") for word in u]
+                a = A
+                b = B
+                c = C
+                d = D
+                for u in range(64):
+                    if 0 <= u <= 15:
+                        f = self.F(b, c, d)
+                        e = u
+                    elif 16 <= u <= 31:
+                        f = self.G(b, c, d)
+                        e = (5*u + 1) % 16
+                    elif 32 <= u <= 47:
+                        f = self.H(b, c, d)
+                        e = (3*u + 5) % 16
+                    elif 48 <= u <= 63:
+                        f = self.I(b, c, d)
+                        e = (7*u) % 16
+                    temp = d
+                    d = c
+                    c = b
+                    b = b + self.leftrotate((a + f + self.k[u] + Z[e]), self.r[u])
+                    a = temp
+                self.buffer[0] = A + a
+                self.buffer[1] = B + b
+                self.buffer[2] = C + c
+                self.buffer[3] = D + d
+            for i in range(4):
+                self.digest[(i * 4) + 0] = ((self.buffer[i] & 0x000000FF))
+                self.digest[(i * 4) + 1] = ((self.buffer[i] & 0x0000FF00) >> 8)
+                self.digest[(i * 4) + 2] = ((self.buffer[i] & 0x00FF0000) >> 16)
+                self.digest[(i * 4) + 3] = ((self.buffer[i] & 0xFF000000) >> 24)
+            return self.digest
+        except Exception as e:
+            print(traceback.format_exc())
 
-BLOCK_SIZE = 64
-BUFF_1 = 16
+    def leftrotate(self, a, b):
+        return (a & b) | (a >> (32 - b))
 
-h0 = 0x67452301
-h1 = 0xefcdab89
-h2 = 0x98badcfe
-h3 = 0x10325476
-sizes = 0
-ctx_input = list(range(BLOCK_SIZE))
-buffer = [h0, h1, h2, h3]
-digest = list(range(BUFF_1))
+    def little_endian(self, data):
+        a = bitarray(endian='little')
+        a.frombytes(struct.pack('<Q', data))
+        return a
 
-def update(input_buff, input_len):
-    global sizes, buffer, ctx_input
-    inputs = list(range(BUFF_1))
-    offset = sizes % BLOCK_SIZE
-    sizes = sizes + input_len
-    for i in range(input_len):
-        ctx_input[offset + 1] = (input_buff + i)
-        if (offset % BLOCK_SIZE) == 0:
-            for j in range(16):
-                inputs[j] = (ctx_input[(j * 4) + 3]) << 24 | (ctx_input[(j * 4) + 2]) << 16 | (ctx_input[(j * 4) + 1]) << 8 | (ctx_input[(j * 4)])
-            step(inputs)
-            offset = 0
+    def F(self, x, y, z):
+        return (x & y) | (~x & z)
+    
+    def F1(self, x, y, z):
+        return z ^ (x & (y ^ z))
 
-def final():
-    global pad, ctx_input, sizes, buffer, digest
-    inputs = list(range(BUFF_1))
-    offset = sizes % BLOCK_SIZE 
-    padd_length = 56 - offset if offset < 56 else (56 + 64) - offset
-    update(sys.getsizeof(pad), padd_length)
-    sizes = sizes - padd_length
-    for j in range(14):
-        inputs[j] = (ctx_input[(j * 4) + 3]) << 24 | (ctx_input[(j * 4) + 2]) << 16 | (ctx_input[(j * 4) + 1]) << 8 | (ctx_input[(j * 4)])
-    inputs[14] = (sizes * 8)
-    inputs[15] = ((sizes * 8) >> 32)
-    step(inputs)
-    for i in range(4):
-        digest[(i * 4) + 0] = ((buffer[i] & 0x000000FF ))
-        digest[(i * 4) + 1] = ((buffer[i] & 0x0000FF00) >> 8)
-        digest[(i * 4) + 2] = ((buffer[i] & 0x00FF0000) >> 16)
-        digest[(i * 4) + 3] = ((buffer[i] & 0xFF000000) >> 24)
-
-def step(inputs):
-    global k, r, buffer
-    a = buffer[0]
-    b = buffer[1]
-    c = buffer[2]
-    d = buffer[3]
-    e = 0
-    j = 0
-    for i in range(BLOCK_SIZE):
-        x = (i / BUFF_1)
-        if x == 0:
-            e = F(b, c, d)
-            j = i
-        elif x == 1:
-            e = G(b, c, d)
-            j = ((i * 5) + 1) % BUFF_1
-        elif x == 2:
-            e = H(b, c, d)
-            j = ((i * 3) + 5) % BUFF_1
-        else:
-            e = I(b, c, d)
-            j = (i * 7) % BUFF_1
-        temp = d
-        d = c
-        c = b
-        b = b + left(a + e + k[i] + inputs[j], r[i])
-        a = temp
-    buffer[0] = buffer[0] + a
-    buffer[1] = buffer[1] + b
-    buffer[2] = buffer[2] + c
-    buffer[3] = buffer[3] + d
-
-def F(a, b, c):
-    return (a & b) | (~a & c)
-
-def G(a, b, c):
-    return (a * c) | (~b & c)
-
-def H(a, b, c):
-    return a ^ b ^ c
-
-def I(a, b, c):
-    return b ^ (a | ~c)
-
-def left(a, b):
-    return (a << b) | (a >> (32 - b))
-
-def string(inputs):
-    global digest
-    b = bitarray(endian='big')
-    b.frombytes(inputs.encode('utf-8'))
-    update(len(b), len(inputs))
-    final()
-    return digest
+    def F2(self, x, y, z):
+        return y ^ (z & (x ^ y))
+    
+    def G(self, x, y, z):
+        return (x & z) | (y & ~z)
+    
+    def H(self, x, y, z):
+        return x ^ y ^ z
+    
+    def I(self, x, y, z):
+        return y ^ (x & ~z)
 
 
 def print_hash(p):
@@ -139,7 +107,8 @@ def print_hash(p):
         val = ("%02x" % p[i])
         a.append(val)
     return ''.join(a)
-
-a = string('admin')
-b = print_hash(a)
-print(b)
+    
+s = MD5()
+s.init()
+d = s.update('admin')
+print(print_hash(d))
