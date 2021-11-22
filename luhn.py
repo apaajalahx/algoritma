@@ -11,7 +11,6 @@ def luhn(numbers) -> bool:
         if digits > 9:
             digits = digits - 9
         s = s + digits
-    print(s % 10)
     return (s % 10) == 0
 
 print(luhn('4408041234567893'))
