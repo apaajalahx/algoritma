@@ -18,6 +18,6 @@ def base64_encode(data):
         else:
             if u != '':
                 z += table[int(u, 2)]
-    print(z)
+    return z
 
 base64_encode('test')
