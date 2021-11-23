@@ -1,10 +1,15 @@
 #!/bin/python3
+# dinar hamid, fb.me/dinar1337, fb.me/maxteroit
 
 table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 def base64_encode(data):
     d = str()
     for z in data:
-        d += bin(int('0x' + z.encode('utf-8').hex(), 0)).replace('b','')
+        lets = '{:0>6}'.format(bin(int('0x' + z.encode('utf-8').hex(), 0)))
+        if len(lets) == 8:
+            d += lets.replace('b','0')
+        else:
+            d += lets.replace('b','')
     while len(d) % 3:
         d += '00000000'
     for z in range(6, len(d) + int(len(d)/6), 7):
@@ -36,9 +41,8 @@ def base64_decode(data):
 
 
 def test():
-    t1 = 'admin'
+    t1 = 'Many hands make light work.'
     t1_enc = base64_encode(t1)
-    print(t1_enc)
     t2_dec = base64_decode(t1_enc)
     if t2_dec == t1:
         print('OK')
